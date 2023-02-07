@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold
-
+from sched import scheduler
 from data.data_loader import load_ft
 from model.HGCN import HGCN
 from model.TMO import TMO
@@ -35,7 +35,7 @@ class AverageMeter(object):
 
 
 
-def train_epoch(data_list, g_list, label, model, optimizer, epoch, idx_tr=[]):
+def train_epoch(data_list, g_list, label, model, optimizer, scheduler_dict, epoch, idx_tr=[]):
     """
     :param data_list: The omics features
     :param g_list: The laplace incidence matrix
@@ -45,7 +45,7 @@ def train_epoch(data_list, g_list, label, model, optimizer, epoch, idx_tr=[]):
     :param epoch: Current training epoch
     :param idx_tr: The index of train set
     """
-
+    scheduler_dict.step()
     model.train()
     loss_meter = AverageMeter()
     criterion = torch.nn.CrossEntropyLoss()
@@ -86,7 +86,7 @@ def test_epoch(data_list, label, g_list, te_idx, model, epoch, idx_list_all):
     return prob
 
 
-def train_model(data_tensor_list, model, g_list, labels_tensor, criterion, optimizer, num_epochs, print_freq, 
+def train_model(data_tensor_list, model, g_list, labels_tensor, criterion, optimizer, scheduler, num_epochs, print_freq, 
                   idx_dict, num_class):
     """
     :param data_tensor_list: The omics features
@@ -111,6 +111,7 @@ def train_model(data_tensor_list, model, g_list, labels_tensor, criterion, optim
 
         for phase in ['train', 'val']:
             if phase == 'train':
+                scheduler.step()
                 model.train()
             else:
                 model.eval()
@@ -189,6 +190,7 @@ if __name__ == '__main__':
 
         print("\nTraining...")
         optim_dict = torch.optim.Adam(model_dict.parameters(), lr=args.lr_e, weight_decay=0.0005)
+        scheduler_dict = torch.optim.lr_scheduler.MultiStepLR(optim_dict, milestones=[100], gamma=0.9)
         best_acc = 0.0
         best_f1 = 0.0
         best_macro = 0.0
@@ -198,12 +200,11 @@ if __name__ == '__main__':
         if num_omics >= 2:
             for epoch in range(args.num_epoch + 1):
                 train_epoch(data_tensor_list, g_list, labels_tensor,
-                            model_dict, optim_dict, epoch = epoch, idx_tr = idx_dict["tr"])
+                            model_dict, optim_dict, scheduler_dict, epoch = epoch, idx_tr = idx_dict["tr"])
                 te_prob = test_epoch(data_tensor_list, labels_tensor, g_list, idx_dict["te"], 
                     model_dict, epoch, idx_list_all)
                 if accuracy_score(labels_tensor[idx_dict["te"]].cpu(), te_prob.argmax(1)) > best_acc:
                     best_acc = accuracy_score(labels_tensor[idx_dict["te"]].cpu(), te_prob.argmax(1))
-                    best_ACC_epoch = epoch
                 if f1_score(labels_tensor[idx_dict["te"]].cpu(), te_prob.argmax(1), average='weighted') > best_f1:
                     best_f1 = f1_score(labels_tensor[idx_dict["te"]].cpu(), te_prob.argmax(1), average='weighted')
                 if (f1_score(labels_tensor[idx_dict["te"]].cpu(), te_prob.argmax(1), average='macro') > best_macro
@@ -239,7 +240,7 @@ if __name__ == '__main__':
                 AUC_res.append(best_macro)
         else:
             criterion = torch.nn.CrossEntropyLoss()
-            best_acc, best_f1, best_macro, best_auc = train_model(model_dict, criterion, optim_dict,
+            best_acc, best_f1, best_macro, best_auc = train_model(model_dict, criterion, optim_dict, scheduler_dict, 
                 args.num_epoch, 50,  data_tensor_list, g_list, labels_tensor, idx_dict, args.num_class)
             if args.num_class == 2:
                 F1_res.append(best_f1)

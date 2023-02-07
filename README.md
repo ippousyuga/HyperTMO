@@ -1,5 +1,4 @@
-# HyperTMO
-HyperTMO: A trusted multi-omics integration framework based on Hypergraph convolutional network for patient classification
+# HyperTMO: A trusted multi-omics integration framework based on Hypergraph convolutional network for patient classification
 ![fig1](./data/fig1.png)
 **General conceptual framework of HyperTMO.**
 (A) The omics data is used to calculate the cosine similarity for each sample, and then the samples are clustered based on KNN algorithm to get the incidence matrix and form the corresponding hypergraph structure.

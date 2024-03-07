@@ -14,4 +14,4 @@
 - `-nc` Number of classes.
 - `-kn` Number of vertices in hyperedge.
 ## Citation
-(Repository is still being improved)
+- This article has been accepted by bioinformatics
